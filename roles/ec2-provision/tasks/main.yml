@@ -1,0 +1,47 @@
+---
+# tasks file for ec2-provision
+
+- name: Create security group
+  ec2_group:
+    name: "{{ project_name }}_sg"
+    description: "{{ project_name }} security group"
+    region: "{{ region }}"
+    rules:
+      - proto: tcp  # ssh
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp  # http
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp  # https
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: firewall_sg
+
+- name: Create a new EC2 key
+  ec2_key:
+         name: "{{ project_name }}-lw"
+         region: "{{ region }}"
+         key_material: "{{ lookup('file', '/home/renuka/.ssh/id_rsa.pub') }}"
+
+- name: Create an EC2 instance
+  ec2:
+    key_name: "{{ project_name }}-lw"
+    region: "{{ region }}"
+    group_id: "{{ firewall_sg.group_id }}"
+    instance_type: "{{ instance_type }}"
+    image: "{{ ami }}"
+    wait: yes
+    instance_tags:
+        Name: "{{ project_name }}-lw"
+    count_tag: Name
+    exact_count: 1
+    vpc_subnet_id: subnet-a8d9dcc0
+    assign_public_ip: yes
+  register: ec2
